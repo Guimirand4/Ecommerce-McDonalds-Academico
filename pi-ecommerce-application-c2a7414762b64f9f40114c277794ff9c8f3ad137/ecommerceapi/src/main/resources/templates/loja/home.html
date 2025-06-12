@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title th:text="${title} ? ${title} + ' - E-commerce' : 'E-commerce'">E-commerce</title>
+  <meta name="_csrf" th:content="${_csrf.token}"/>
+  <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="/static/css/loja.css">
+</head>
+<body>
+<div th:fragment="content">
+  <!-- Banner Principal (opcional) -->
+  <header class="p-3 rounded mb-4" style="background-color: #DA291C;">
+    <div class="container">
+      <h1 style="color: #FFC72C;">
+        <a href="/loja" style="color: inherit; text-decoration: none;">
+          <img src="/static/images/m-mcdonalds-removebg-preview.png" alt="Logo Mc Donalds" style="width:40px; height:auto; vertical-align: middle;" class="me-2">
+          Mc Donalds
+        </a>
+      </h1>
+      <div class="text-end">
+        <div class="dropdown d-inline-block me-2">
+          <button class="btn btn-outline-light dropdown-toggle" type="button" id="userMenu" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="bi bi-person-fill me-1"></i> <span id="loginText">Minha Conta</span>
+          </button>
+          <ul class="dropdown-menu" aria-labelledby="userMenu">
+            <li id="loginOption"><a class="dropdown-item" href="/loja/login-cliente">Login</a></li>
+            <li id="perfilOption" style="display: none;"><a class="dropdown-item" href="/loja/perfil">Meu Perfil</a></li>
+            <li id="divider" style="display: none;"><hr class="dropdown-divider"></li>
+            <li id="logoutOption" style="display: none;"><a class="dropdown-item" href="#" onclick="fazerLogout(); return false;">Sair</a></li>
+          </ul>
+        </div>
+
+
+        <a href="/loja/carrinho" class="btn btn-warning">
+          <i class="bi bi-cart-fill me-1"></i> Carrinho
+          <span class="badge bg-dark ms-1" id="cartItemCount">0</span>
+        </a>
+      </div>
+    </div>
+  </header>
+  <!-- Campo de Filtro de Produto -->
+  <div class="row mb-4">
+    <div class="col-12">
+      <form class="d-flex" method="get" th:action="@{/loja}">
+        <input class="form-control me-2"
+               type="search"
+               name="nome"
+               placeholder="Buscar produto pelo nome..."
+               th:value="${filtroNome}"
+               aria-label="Buscar">
+        <button class="btn btn-warning" type="submit">
+          <i class="bi bi-search"></i> Buscar
+        </button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- Lista de Produtos -->
+  <div id="produtos" class="row">
+    <!-- Mensagem quando não há produtos -->
+    <div th:if="${produtos.empty}" class="col-12 text-center py-5">
+      <div class="alert alert-info">
+        <i class="bi bi-exclamation-circle-fill me-2"></i>
+        Nenhum produto encontrado.
+      </div>
+    </div>
+
+    <!-- Exibição dos produtos -->
+    <div th:each="produto : ${produtos}" class="col-md-4 col-lg-3 mb-4">
+      <div class="card h-100 produto-card">
+        <!-- Imagem do Produto -->
+        <div class="card-img-container">
+          <img th:if="${produto.imagemPrincipalUrl}"
+               th:src="${produto.imagemPrincipalUrl}"
+               class="card-img-top"
+               th:alt="${produto.nome}">
+          <img th:unless="${produto.imagemPrincipalUrl}"
+               src="/static/images/produto-sem-imagem.jpg"
+               class="card-img-top"
+               alt="Imagem não disponível">
+        </div>
+
+        <!-- Dados do Produto -->
+        <div class="card-body d-flex flex-column">
+          <h5 class="card-title" th:text="${produto.nome}">Nome do Produto</h5>
+          <p class="card-text text-truncate" th:text="${produto.descricao}">Descrição breve do produto...</p>
+          <div class="mt-auto">
+            <!-- Valor do produto em preto -->
+            <p class="card-text fs-5 fw-bold text-dark mb-2">
+              <span th:text="'R$ ' + ${#numbers.formatDecimal(produto.preco, 1, 2, 'POINT')}">R$ 0,00</span>
+            </p>
+            <div class="d-grid gap-2">
+              <!-- Botão Ver Detalhes com fundo preto e letras amarelas -->
+              <a th:href="@{/loja/produto/{id}(id=${produto.id})}"
+                 class="btn"
+                 style="background-color: #000; border-color: #000; color: #FFC72C;">
+                Ver Detalhes
+              </a>
+              <!-- Botão Adicionar ao Carrinho -->
+              <button class="btn add-to-cart"
+                      style="background-color: #DA291C; border-color: #DA291C; color: #fff;"
+                      th:attr="data-produto-id=${produto.id},
+                 data-produto-nome=${produto.nome},
+                 data-produto-preco=${produto.preco},
+                 data-produto-imagem=${produto.imagemPrincipalUrl}">
+                <i class="bi bi-cart-plus me-1"></i> Adicionar ao Carrinho
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Paginação -->
+  <div class="row mt-4" th:if="${totalPages > 0}">
+    <div class="col-12">
+      <nav>
+        <ul class="pagination justify-content-center">
+          <!-- Botão Anterior -->
+          <li class="page-item" th:classappend="${currentPage == 0 ? 'disabled' : ''}">
+            <a class="page-link"
+               th:href="@{/loja(page=${currentPage - 1}, size=12, nome=${filtroNome}, codigo=${filtroCodigo})}"
+               aria-label="Anterior"
+               style="background-color: #FFC72C; border-color: #DA291C; color: #000;">
+              <span aria-hidden="true">&laquo;</span>
+            </a>
+          </li>
+
+          <!-- Números de Páginas -->
+          <li class="page-item" th:each="i : ${#numbers.sequence(0, totalPages - 1)}"
+              th:classappend="${currentPage == i ? 'active' : ''}">
+            <a class="page-link"
+               th:href="@{/loja(page=${i}, size=12, nome=${filtroNome}, codigo=${filtroCodigo})}"
+               th:text="${i + 1}"
+               th:style="${currentPage == i} ? 'background-color: #DA291C; border-color: #DA291C; color: #fff;' : 'background-color: #FFC72C; border-color: #DA291C; color: #000;'">
+              1
+            </a>
+          </li>
+
+          <!-- Botão Próximo -->
+          <li class="page-item" th:classappend="${currentPage == totalPages - 1 ? 'disabled' : ''}">
+            <a class="page-link"
+               th:href="@{/loja(page=${currentPage + 1}, size=12, nome=${filtroNome}, codigo=${filtroCodigo})}"
+               aria-label="Próximo"
+               style="background-color: #FFC72C; border-color: #DA291C; color: #000;">
+              <span aria-hidden="true">&raquo;</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Atualiza o contador de itens do carrinho no header usando a chave "cart"
+  function updateCartCount() {
+      let cart = JSON.parse(localStorage.getItem('cart')) || [];
+      let count = 0;
+      cart.forEach(item => {
+          count += item.quantidade;
+      });
+      document.getElementById('cartItemCount').innerText = count;
+  }
+
+  // Função para adicionar o produto completo ao carrinho (com dados: id, nome, preço, imagem e quantidade)
+  function adicionarAoCarrinho(produto) {
+      let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+      // Verificar se o produto já existe no carrinho pelo produtoId
+      const itemExistente = cart.find(item => item.produtoId === produto.produtoId);
+
+      if (itemExistente) {
+          // Atualiza a quantidade do item existente
+          itemExistente.quantidade += parseInt(produto.quantidade);
+      } else {
+          // Adiciona o novo item com todos os dados
+          cart.push({
+              produtoId: produto.produtoId,
+              nome: produto.nome,
+              preco: parseFloat(produto.preco),
+              imagemUrl: produto.imagemUrl,
+              quantidade: parseInt(produto.quantidade)
+          });
+      }
+
+      // Salvar o carrinho atualizado
+      localStorage.setItem('cart', JSON.stringify(cart));
+
+      // Atualizar o contador de itens no header
+      updateCartCount();
+
+      // Feedback visual ao usuário
+      alert('Produto adicionado ao carrinho!');
+  }
+
+  // Inicializa ao carregar a página
+  document.addEventListener('DOMContentLoaded', function() {
+      updateCartCount();
+
+      // Adicionar evento aos botões de "Adicionar ao Carrinho"
+      const addToCartButtons = document.querySelectorAll('.add-to-cart, [class*="adicionar-ao-carrinho"]');
+      addToCartButtons.forEach(button => {
+          button.addEventListener('click', function(event) {
+              // Obtenha os dados do produto a partir dos atributos data-* do botão
+              const produto = {
+                  produtoId: this.getAttribute('data-produto-id'),
+                  nome: this.getAttribute('data-produto-nome'),
+                  preco: this.getAttribute('data-produto-preco'),
+                  imagemUrl: this.getAttribute('data-produto-imagem'),
+                  quantidade: 1  // inicialmente 1 item
+              };
+
+              adicionarAoCarrinho(produto);
+
+              // Efeito visual (exemplo de animação) se necessário
+              this.classList.add('cart-animation');
+              setTimeout(() => {
+                  this.classList.remove('cart-animation');
+              }, 500);
+          });
+      });
+  });
+
+  // Verificar status de autenticação
+  document.addEventListener('DOMContentLoaded', function () {
+  fetch('/api/cliente/auth/status')
+    .then(response => response.json())
+    .then(data => {
+      if (data.autenticado) {
+        document.getElementById('loginText').textContent = data.clienteNome || 'Minha Conta';
+        document.getElementById('loginOption').style.display = 'none';
+        document.getElementById('perfilOption').style.display = 'block';
+        document.getElementById('divider').style.display = 'block';
+        document.getElementById('logoutOption').style.display = 'block';
+      } else {
+        document.getElementById('loginText').textContent = 'Login';
+        document.getElementById('loginOption').style.display = 'block';
+        document.getElementById('perfilOption').style.display = 'none';
+        document.getElementById('divider').style.display = 'none';
+        document.getElementById('logoutOption').style.display = 'none';
+      }
+    })
+    .catch(error => {
+      console.error('Erro ao verificar autenticação:', error);
+    });
+});
+
+
+  // Função para fazer logout
+  function fazerLogout() {
+    fetch('/api/cliente/auth/logout', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(response => {
+      // Independente do resultado, redirecionar para a página inicial
+      window.location.href = '/loja';
+    })
+    .catch(error => {
+      console.error('Erro ao fazer logout:', error);
+      window.location.href = '/loja';
+    });
+  }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-br" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title th:text="${produto.nome} + ' - E-commerce'">Detalhes do Produto - E-commerce</title>
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="/static/css/loja.css">
+    <style>
+        /* Estilos adicionais para o carrossel de imagens */
+        .carousel-item img {
+            max-height: 350px;
+            object-fit: contain;
+        }
+        /* Mensagem de sucesso */
+        .success-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px;
+            background-color: #28a745;
+            color: white;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 1000;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<!-- Mensagem de sucesso -->
+<div id="successMessage" class="success-message">
+    <i class="bi bi-check-circle me-2"></i> Produto adicionado ao carrinho!
+</div>
+
+<!-- Cabeçalho com padrão Mc Donalds -->
+<header class="p-3 rounded mb-4" style="background-color: #DA291C;">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1 style="color: #FFC72C;">
+                <a href="/loja" style="color: inherit; text-decoration: none;">
+                    <img src="/static/images/m-mcdonalds-removebg-preview.png" alt="Logo Mc Donalds" style="width:40px; height:auto; vertical-align: middle;" class="me-2">
+                    Mc Donalds
+                </a>
+            </h1>
+            <div>
+                <a href="/loja/login-cliente" class="btn btn-outline-light me-2">
+                    <i class="bi bi-person-fill me-1"></i> Login
+                </a>
+                <a href="/loja/carrinho" class="btn btn-warning">
+                    <i class="bi bi-cart-fill me-1"></i> Carrinho
+                    <span class="badge bg-dark ms-1" id="cartItemCount">0</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+<!-- Conteúdo principal -->
+<main class="container py-4">
+    <div class="row">
+        <!-- Carrossel de imagens -->
+        <div class="col-md-6 mb-4">
+            <div id="productCarousel" class="carousel slide" data-bs-ride="carousel">
+                <div class="carousel-inner">
+                    <!-- Se houver imagens, itera sobre elas -->
+                    <div th:if="${produto.imagens != null and !produto.imagens.isEmpty()}"
+                         th:each="imagem, iterStat : ${produto.imagens}"
+                         class="carousel-item"
+                         th:classappend="${iterStat.index == 0} ? ' active'">
+                        <img th:src="${imagem.caminho}" class="d-block w-100" th:alt="${produto.nome}">
+                    </div>
+                    <!-- Se não houver imagens, exibe a imagem principal ou uma padrão -->
+                    <div th:if="${produto.imagens == null or produto.imagens.isEmpty()}" class="carousel-item active">
+                        <img th:if="${produto.imagemPrincipalUrl != null}" th:src="${produto.imagemPrincipalUrl}" class="d-block w-100" th:alt="${produto.nome}">
+                        <img th:if="${produto.imagemPrincipalUrl == null}" src="/static/images/produto-sem-imagem.jpg" class="d-block w-100" alt="Imagem não disponível">
+                    </div>
+                </div>
+                <!-- Controles do carrossel -->
+                <button class="carousel-control-prev" type="button" data-bs-target="#productCarousel" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Anterior</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#productCarousel" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Próximo</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Informações do produto -->
+        <div class="col-md-6">
+            <h1 class="mb-3" th:text="${produto.nome}">Nome do Produto</h1>
+            <p class="lead" th:text="${produto.descricao}">Descrição do produto</p>
+
+            <div class="mb-3">
+                <!-- Produto código removido -->
+                <span class="badge bg-success" th:if="${produto.quantidadeEstoque > 0}">Em estoque</span>
+                <span class="badge bg-danger" th:if="${produto.quantidadeEstoque <= 0}">Fora de estoque</span>
+            </div>
+
+            <div class="mb-4">
+                <h2 class="fs-2" style="color: #000;">
+                    <span th:text="'R$ ' + ${#numbers.formatDecimal(produto.preco, 1, 2, 'POINT')}">R$ 0,00</span>
+                </h2>
+            </div>
+
+            <!-- Quantidade e botão de adicionar ao carrinho -->
+            <div class="mb-4">
+                <div class="row g-2 align-items-center">
+                    <div class="col-auto">
+                        <label for="quantidade" class="col-form-label">Quantidade:</label>
+                    </div>
+                    <div class="col-auto">
+                        <div class="input-group">
+                            <button class="btn btn-outline-secondary" type="button" onclick="decrementQuantity()">-</button>
+                            <input type="number" class="form-control text-center" id="quantidade" value="1" min="1"
+                                   th:max="${produto.quantidadeEstoque}" style="width: 60px;">
+                            <button class="btn btn-outline-secondary" type="button" onclick="incrementQuantity()">+</button>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <button id="btnAdicionar" class="btn w-100"
+                                style="background-color: #DA291C; border-color: #DA291C; color: #fff;"
+                                th:attr="data-produto-id=${produto.id},
+                 data-produto-nome=${produto.nome},
+                 data-produto-preco=${produto.preco},
+                 data-produto-imagem=${produto.imagemPrincipalUrl}"
+                                onclick="adicionarAoCarrinhoComQuantidade()"
+                                th:disabled="${produto.quantidadeEstoque <= 0}">
+                            <i class="bi bi-cart-plus me-2"></i>
+                            Adicionar ao Carrinho
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</main>
+
+<!-- Rodapé -->
+<footer class="bg-dark text-white py-4 mt-5">
+    <div class="container">
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Mc Donalds</h5>
+            </div>
+            <div class="col-md-6 text-md-end">
+                <p>© 2025 Mc Donalds. Todos os direitos reservados.</p>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // Carregar contagem de itens do carrinho quando a página carregar
+    window.addEventListener('DOMContentLoaded', function() {
+        atualizarContagemCarrinho();
+    });
+
+    // Funções para incrementar/decrementar quantidade
+    function incrementQuantity() {
+        const input = document.getElementById('quantidade');
+        const maxValue = parseInt(input.getAttribute('max') || 999);
+        let currentValue = parseInt(input.value || 1);
+        if (currentValue < maxValue) {
+            input.value = currentValue + 1;
+        }
+    }
+
+    function decrementQuantity() {
+        const input = document.getElementById('quantidade');
+        let currentValue = parseInt(input.value || 1);
+        if (currentValue > 1) {
+            input.value = currentValue - 1;
+        }
+    }
+
+    // Atualiza a contagem de itens do carrinho usando a chave "cart"
+    function atualizarContagemCarrinho() {
+        const cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const totalItens = cart.reduce((total, item) => total + item.quantidade, 0);
+        document.getElementById('cartItemCount').textContent = totalItens;
+    }
+
+    // Mostra mensagem de sucesso
+    function mostrarMensagemSucesso() {
+        const mensagem = document.getElementById('successMessage');
+        mensagem.style.display = 'block';
+        setTimeout(() => {
+            mensagem.style.display = 'none';
+        }, 3000);
+    }
+
+    // Adiciona o produto ao carrinho com a quantidade especificada, incluindo dados completos do produto
+    function adicionarAoCarrinhoComQuantidade() {
+        // Obter os dados do botão a partir dos atributos data-*
+        const btn = document.getElementById('btnAdicionar');
+        const produto = {
+            produtoId: btn.getAttribute('data-produto-id'),
+            nome: btn.getAttribute('data-produto-nome'),
+            preco: parseFloat(btn.getAttribute('data-produto-preco')),
+            imagemUrl: btn.getAttribute('data-produto-imagem')
+        };
+        const quantidade = parseInt(document.getElementById('quantidade').value);
+
+        let cart = JSON.parse(localStorage.getItem('cart')) || [];
+        const itemExistente = cart.find(item => item.produtoId === produto.produtoId);
+        if (itemExistente) {
+            itemExistente.quantidade += quantidade;
+        } else {
+            cart.push({
+                ...produto,
+                quantidade: quantidade
+            });
+        }
+        localStorage.setItem('cart', JSON.stringify(cart));
+        atualizarContagemCarrinho();
+        mostrarMensagemSucesso();
+    }
+</script>
+
+</body>
+</html>
